@@ -151,7 +151,7 @@ const deleteProfile = async function (req, res) {
   }
 };
 
-
+// ***************************************************************************************************************
 const deleteuserProfile = async function (req, res) {
   try {
     const id = req.params.id; //mongoose userprofile id
@@ -165,6 +165,7 @@ const deleteuserProfile = async function (req, res) {
   }
 };
 
+// ***************************************************************************************************************
 
 const getUserProfileById = async function (req, res) {
   try {
@@ -240,7 +241,9 @@ const sendToken = async function (req, res) {
     message: "Reset link sent to mail",
   });
 }
-const verifyAndUpdatePassword = async function (req, res) {
+
+// **************************************************************************
+const verifyAndUpdatePassword =  async function(req, res) {
   const { userid, token } = req.params;
   let userDB = await userModel.findOne({ _id: userid });
   //checking user is in db or not
@@ -250,17 +253,20 @@ const verifyAndUpdatePassword = async function (req, res) {
   const isTokenValid = userDB.resetToken === token;
   //checking if the time limit to change the password has the expired
   //  const isntExpired = userDB.resetExpiry > Date.now();
-  const resetExpiryDate = new Date(userDB.resetExpiry);
-  const isntExpired = resetExpiryDate.getTime() > Date.now();
-  console.log('resetExpiry:', userDB.resetExpiry);
-  console.log('current time:', Date.now());
+   // Checking if the reset expiry time has expired
+  //  const resetExpiryDate = new Date(userDB.resetExpiry);
+   const resetExpiryDate = new Date();
+   resetExpiryDate.setHours(resetExpiryDate.getHours() + 1);
+   const isntExpired = resetExpiryDate > Date.now();
+   console.log('resetExpiry:', userDB.resetExpiry);
+   console.log('current time:', Date.now());
   //  console.log(isTokenValid, isntExpired);
   if (isTokenValid && isntExpired) {
     const { password } = req.body;
     const hashedNewPassword = await bcrypt.hash(password, Number(10));
     //deleting the token and expiry time after updating password
     const updatePasswordDB = await userModel.findOneAndUpdate(
-      { _id: userid },
+      { _id: userid},
       {
         $set: { password: hashedNewPassword },
         $unset: {
@@ -270,10 +276,13 @@ const verifyAndUpdatePassword = async function (req, res) {
       },
       { returnNewDocument: true }
     );
-    return res.status(200).send({ status: true, data: updatePasswordDB, message: "password updated successfully" });
+    return res.status(200).send({status:true , data : updatePasswordDB ,message: "password updated successfully" });
   }
-  return res.status(400).send({ Error: "Invalid Link or Expired" });
+  return  res.status(400).send({ Error: "Invalid Link"});
 }
+// **************************************************************************
+
+
 const loginUser = async function (req, res) {
   try {
     const { email, password } = req.body;
@@ -298,6 +307,46 @@ const loginUser = async function (req, res) {
   }
 };
 //*********************************single image update*********************************************************
+// const SingleImageUpdate = async function (req, res) {
+//   try {
+//     const id = req.params.id;
+
+//     upload.fields([
+//       { name: 'profileLink', maxCount: 1 }
+//     ])(req, res, async function (err) {
+//       if (err) {
+//         return res.status(500).send({ status: false, message: err.message });
+//       }
+
+//       const { userDetailsID } = req.body;
+//       const { profileLink } = req.files;
+
+//       const userProfileData = {
+//         userDetailsID
+//       };
+
+//       // Handle file uploads if files exist
+//       if (profileLink) {
+//         if (profileLink) {
+//           userProfileData.profileLink = {
+
+//             url: req.files.profileLink[0].location
+//           };
+//         }
+//       }
+//       const updatedUserProfile = await userprofileModel.findByIdAndUpdate(id, userProfileData, { new: true });
+
+//       if (!updatedUserProfile) {
+//         return res.status(404).send({ status: false, message: 'User profile not found' });
+//       }
+
+//       return res.status(200).send({ status: true, data: updatedUserProfile, message: 'User profile updated successfully' });
+//     });
+//   } catch (err) {
+//     res.status(500).send({ status: false, message: err.message });
+//   }
+// };
+
 const SingleImageUpdate = async function (req, res) {
   try {
     const id = req.params.id;
@@ -309,11 +358,11 @@ const SingleImageUpdate = async function (req, res) {
         return res.status(500).send({ status: false, message: err.message });
       }
 
-      const { userDetailsID } = req.body;
+      // const { userDetailsID } = req.body;
       const { profileLink } = req.files;
 
       const userProfileData = {
-        userDetailsID
+        // userDetailsID
       };
 
       // Handle file uploads if files exist
@@ -325,7 +374,7 @@ const SingleImageUpdate = async function (req, res) {
           };
         }
       }
-      const updatedUserProfile = await userprofileModel.findByIdAndUpdate(id, userProfileData, { new: true });
+      const updatedUserProfile = await userprofileModel.findOneAndUpdate({userDetailsID:id}, userProfileData, { new: true });
 
       if (!updatedUserProfile) {
         return res.status(404).send({ status: false, message: 'User profile not found' });
@@ -334,7 +383,7 @@ const SingleImageUpdate = async function (req, res) {
       return res.status(200).send({ status: true, data: updatedUserProfile, message: 'User profile updated successfully' });
     });
   } catch (err) {
-    res.status(500).send({ status: false, message: err.message });
+    return res.status(500).send({ status: false, message: err.message });
   }
 };
 // **************************************************************************************************************
@@ -387,5 +436,7 @@ const findJobMatches = async function (req, res) {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+
 
 module.exports = { register, loginUser, userGeneral, deleteuserProfile, findJobMatches, updateuserProfile, getUserProfileById, SingleImageUpdate, sendToken, verifyAndUpdatePassword, deleteProfile };

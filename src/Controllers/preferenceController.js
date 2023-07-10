@@ -1,5 +1,8 @@
 const talentModel = require("../Models/preferenceModel");
+const jobModel = require("../Models/jobModel");
 const Joi = require("joi");
+
+
 const createPreference = async (req, res) => {
   try {
     const schema = Joi.object({
@@ -94,9 +97,57 @@ const deletePreference = async (req, res) => {
     return res.status(500).json({ status: false, message: error.message });
   }
 };
+
+// ******************************************************************************************************************
+
+const searchJobsByPreferences = async (req, res) => {
+  const userDetailsID = req.params.userDetailsID;
+
+  try {
+    // Find the user's preferences based on userDetailsID
+    const userPreferences = await talentModel.findOne({
+      userDetailsID: userDetailsID,
+    });
+
+    if (!userPreferences) {
+      return res.status(404).send({ status: false, message: 'Preference data not found' });
+    }
+
+    // Extract preferences data
+    const {
+      highestEducation,
+      jobNature,
+      jobRole,
+      city,
+      sector,
+      location,
+      skills,
+      experienceOverall,
+    } = userPreferences;
+
+    const matchingJobs = await jobModel.find({
+      $or: [
+        { highestEducation: { $in: highestEducation } },
+        { jobNature: { $in: jobNature } },
+        { jobRole: { $in: jobRole } },
+        { location: { $in: city } },
+        { sector : {$in: sector } },
+        { location : {$in: location } },
+        { primarySkills : {$in: skills} },
+        { experience : {$in: experienceOverall} }
+      ],
+    });
+
+    return res.status(200).send({status:true, data: matchingJobs , message: "Success"});
+  } catch (error) {
+    return res.status(500).send({ status: false, message: error.message });
+  }
+};
+
 module.exports = {
   createPreference,
   updatePreference,
   fetchPreference,
   deletePreference,
+  searchJobsByPreferences
 };

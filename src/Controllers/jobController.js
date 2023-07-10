@@ -42,6 +42,8 @@ const jobInfo = async (req, res) => {
     }
     const { jobRole, jobCategory, experience, primarySkills, secondarySkills, jobDescription, location, company, highestEducation, salary, sector, isDeleted, recruiterPlan, gender } = req.body;
     const jobSchema = Joi.object({
+      userDetailsID :Joi.string().required() ,
+      recruiterPlan :Joi.string().required() , 
       jobRole: Joi.array().items(Joi.string().required()).required(),
       jobCategory : Joi.string().required(),
       experience: Joi.array().items(Joi.string().required()).required(),
