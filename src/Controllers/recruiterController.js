@@ -10,7 +10,7 @@ const userprofileModel = require("../Models/userprofileModel");
 const skillsModel = require("../Models/InfoModels/skillsModel");
 const projectsModel = require("../Models/InfoModels/projectsModel");
 const preferenceModel = require("../Models/preferenceModel");
-const revenueModel = require('../Models/revenueRModel');
+const revenueRModel = require('../Models/revenueRModel');
 
 
 // Import the RecruiterPlan model
@@ -140,7 +140,7 @@ const getRecruiterPlan = async (req, res) => {
     }
 
     // Find the recruiter's subscription plans
-    const subscriptionPlans = await revenueModel.find({ userDetailsID });
+    const subscriptionPlans = await revenueRModel.find({ userDetailsID });
     if (!subscriptionPlans) {
       return res.status(404).send({ status: false, message: 'subscriptionPlans not found' });
     }
@@ -271,7 +271,7 @@ const RevenuePlan = async function (req, res) {
 
     // Create the subscription plan in the revenueModel
     const revenueData = { ...req.body, duration, ...defaults };
-    const data = await revenueModel.create(revenueData);
+    const data = await revenueRModel.create(revenueData);
 
     return res.status(200).send({ status: true, data: data, message: 'Subscription plan created' });
 
@@ -286,7 +286,7 @@ const RevenuePlan = async function (req, res) {
 //   try {
 //     const {userDetailsID ,id} = req.params;
 
-//     const subscriptionPlans = await revenueModel.findOne({
+//     const subscriptionPlans = await revenueRModel.findOne({
 //       _id:id,
 //       userDetailsID,
 //       isDeleted: false
@@ -365,37 +365,44 @@ const RevenuePlan = async function (req, res) {
 const PlanWithJobPostInformation = async (req, res) => {
   try {
     const userDetailsID = req.params.userDetailsID;
-    const subscriptionPlans = await revenueModel.findOne({
+
+    const subscriptionPlans = await revenueRModel.findOne({
       _id: req.params.id,
       userDetailsID,
       isDeleted: false
-    });
+    })
+
     if (!subscriptionPlans) {
       return res.status(404).json({ status: false, message: 'Plans not found' });
     }
     const currentDate = new Date();
     const expiryDate = new Date(subscriptionPlans.start);
     expiryDate.setDate(expiryDate.getDate() + subscriptionPlans.duration);
+
     const isSubscriptionActive = currentDate <= expiryDate;
+
     const jobPosts = await jobModel.find({
-      userDetailsID,
-      recruiterPlan: subscriptionPlans
+      userDetailsID
     });
     // Update the isExpired and isDeleted fields for each job post
     for (const jobPost of jobPosts) {
       const createdAt = new Date(jobPost.createdAt);
       const expiry = new Date(createdAt);
       expiry.setMonth(expiry.getMonth() + 1); // Set expiry to one month after createdAt
+
       if (currentDate > expiry) {
         jobPost.isExpired = true;
         jobPost.isDeleted = true;
       }
     }
     await Promise.all(jobPosts.map(jobPost => jobPost.save())); // Save the updated job posts
+
     const jobCount = jobPosts.length;
+
     const remainingDays = Math.ceil((expiryDate - currentDate) / (1000 * 60 * 60 * 24));
     const status = remainingDays >= 0 && isSubscriptionActive;
     let limit = false;
+
     if (jobCount >= subscriptionPlans.jobPostno) {
       limit = true;
     }
@@ -404,6 +411,7 @@ const PlanWithJobPostInformation = async (req, res) => {
       isSubscriptionActive: isSubscriptionActive,
       status: status,
       limit,
+      subscription: subscriptionPlans.recruiterPlan,
       jobPostno: subscriptionPlans.jobPostno,
       start: subscriptionPlans.start,
       duration: subscriptionPlans.duration,
@@ -429,9 +437,9 @@ const PlanWithJobPostInformation = async (req, res) => {
         deleted: jobPost.isDeleted,
       })),
     };
-    res.status(200).json({ status: true, data: [planDetails] , message: 'Success'});
+    return res.status(200).send({ status: true, data: [planDetails], message: 'Success' });
   } catch (error) {
-    res.status(500).json({ status: false, message: error.message });
+    return res.status(500).send({ status: false, message: error.message });
   }
 };
 // *********************jobSearch************************jobSearch*************************jobSearch**************//
@@ -705,16 +713,146 @@ async function recruiterSearch(req, res) {
 // };
 
 
+// const PREP = async function (req, res) {
+//   try {
+//     const ID = req.params.id; // Assuming params_id is the ID of the job post
+//     const jobPost = await jobModel.findById({ _id: ID }).populate('recruiterPlan', 'recruiterPlan');
+//     if (!jobPost) {
+//       return res.status(404).json({ success: false, error: 'Job post not found' });
+//     }
+//     const { recruiterPlan, jobRole, highestEducation, primarySkills } = jobPost;PO
+//     const allUsers = await userModel.find({ recruiter: false, isDeleted: false }).lean();
+//     const userDetailsArray = []; // Array to store all the userDetails objects
+//     await Promise.all(
+//       allUsers.map(async (user) => {
+//         const educationDetails = await educationModel.find({ userDetailsID: user._id }).lean();
+//         const experienceDetails = await experienceModel.find({ userDetailsID: user._id }).lean();
+//         const skillsDetails = await skillsModel.findOne({ userDetailsID: user._id }).lean();
+//         const projectDetails = await projectsModel.find({ userDetailsID: user._id }).lean();
+//         const userProfile = await userprofileModel.findOne({ userDetailsID: user._id }).lean();
+//         const preferenceDetails = await preferenceModel.findOne({ userDetailsID: user._id }).lean();
+//         const { userDetailsID, recruiter, isDeleted: userIsDeleted, _id: userId, createdAt, updatedAt, __v, password, ...filteredUser } = user;
+//         // Exclude fields from educationDetails
+//         const filteredEducationDetails = educationDetails.map((education) => {
+//           const { userDetailsID, isDeleted: educationIsDeleted, _id: educationId, createdAt, updatedAt, __v, ...filteredEducation } = education;
+//           return filteredEducation;
+//         });
+//         // Exclude fields from experienceDetails
+//         const filteredExperienceDetails = experienceDetails.map((experience) => {
+//           const { userDetailsID, isDeleted: experienceIsDeleted, _id: experienceId, createdAt, updatedAt, __v, ...filteredExperience } = experience;
+//           return filteredExperience;
+//         });
+//         // Exclude fields from skillsDetails
+//         const { userDetailsID: skillsUserDetailsID, createdAt: skillsCreatedAt, updatedAt: skillsUpdatedAt, __v: skillsV, isDeleted: skillsIsDeleted, _id: skillsId, ...filteredSkillsDetails } = skillsDetails;
+//         // Exclude fields from projectDetails
+//         const filteredProjectDetails = projectDetails.map((project) => {
+//           const { userDetailsID, isDeleted: projectIsDeleted, _id: projectId, createdAt, updatedAt, __v, ...filteredProject } = project;
+//           return filteredProject;
+//         });
+//         const filteredPreferenceDetails = preferenceDetails ? (({ _id, userDetailsID, createdAt, updatedAt, isDeleted, __v, ...filteredPrefs }) => filteredPrefs)(preferenceDetails) : null;
+//         // Exclude fields from userProfile
+//         const { userDetailsID: userProfileDetailsID, createdAt: userProfileCreatedAt, updatedAt: userProfileUpdatedAt, __v: userProfileV, isDeleted: userProfileIsDeleted, _id: userProfileId, ...filteredUserProfile } = userProfile;
+//         // Calculate the score for education level
+//         const highestEducationPoints = preferenceDetails?.highestEducation ? EducationLevelPoints[preferenceDetails.highestEducation] || 0 : 0;
+//         // Calculate the score for experience level
+//         const experienceLevelPoints = preferenceDetails?.experienceOverall ? ExperienceLevelPoints[preferenceDetails.experienceOverall] || 0 : 0;
+//         // Calculate the score for project type
+//         const projectTypePoints = projectDetails.length > 0 ? ProjectTypePoints[projectDetails[0].projectType] || 0 : 0;
+//         // Calculate the score for experience type
+//         const experienceTypePoints = experienceDetails.length > 0 ? ExperienceTypePoints[experienceDetails[0].experienceType] || 0 : 0;
+//         // Calculate the score for authority
+//         const authorityPoints = educationDetails.length > 0 ? AuthorityPoints[educationDetails[0].authority] || 0 : 0;
+//         // Calculate the overall score for the user
+//         const totalScore =
+//           highestEducationPoints +
+//           experienceLevelPoints +
+//           projectTypePoints +
+//           experienceTypePoints +
+//           authorityPoints;
+//         const userDetails = {
+//           HiRank: totalScore,
+//           user: filteredUser,
+//           educationDetails: filteredEducationDetails,
+//           experienceDetails: filteredExperienceDetails,
+//           skillsDetails: filteredSkillsDetails,
+//           projectDetails: filteredProjectDetails,
+//           userProfile: filteredUserProfile,
+//           preferenceDetails: filteredPreferenceDetails,
+//         };
+//         if (
+//           filteredPreferenceDetails.jobRole.includes(jobRole) &&
+//           filteredPreferenceDetails.highestEducation === highestEducation
+//         ) {
+//           userDetails.primarySkillPercentageMatch = primarySkillPercentageMatch;
+//         }
+//         userDetailsArray.push(userDetails);
+//       })
+//     );
+//     const advancePool = [];
+//     const proficientPool = [];
+//     const expertPool = [];
+//     userDetailsArray.forEach((userDetails) => {
+//       const { educationDetails, preferenceDetails, skillsDetails } = userDetails;
+//       const authority = educationDetails.length > 0 ? educationDetails[0].authority : authority;
+//       const experienceOverall = preferenceDetails?.experienceOverall;
+//       let pool;
+//       if (
+//         (authority === 'Central Govt' ||
+//           authority === 'State Govt' ||
+//           authority === 'Deemed University' ||
+//           authority === 'Private') &&
+//         (experienceOverall === 'Fresher' ||
+//           experienceOverall === '1 Year' ||
+//           experienceOverall === '2 Year')
+//       ) {
+//         pool = advancePool;
+//       } else if (
+//         (authority === 'IIT' ||
+//           authority === 'IIM' ||
+//           authority === 'IISc' ||
+//           authority === 'NIT') &&
+//         (experienceOverall === '4 Year' || experienceOverall === '5 Year' || experienceOverall === '3 Year')
+//       ) {
+//         pool = proficientPool;
+//       } else {
+//         pool = expertPool;
+//       }
+//       const requiredPrimarySkills = jobPost.primarySkills;
+//       const primarySkillMatchCount = Array.isArray(skillsDetails.primarySkills) ? skillsDetails.primarySkills.filter((skill) => requiredPrimarySkills.includes(skill)).length : 0;
+//       const primarySkillPercentageMatch = (primarySkillMatchCount / requiredPrimarySkills.length) * 100;
+//       userDetails.primarySkillPercentageMatch = primarySkillPercentageMatch;
+//       pool.push(userDetails);
+//     });
+//     // Based on the recruiterPlan, push matched users to the appropriate pools
+//     const { recruiterPlan: jobRecruiterPlan } = jobPost.recruiterPlan;
+//     const poolMap = {
+//       Gold: advancePool,
+//       Silver: proficientPool,
+//       Platinum: expertPool,
+//     };
+//     const matchedUsers = poolMap[jobRecruiterPlan];
+//     res.status(200).json({ success: true, data:matchedUsers,message: 'Success' });
+//   } catch (error) {
+//     res.status(500).json({ success: false, error: error.message });
+//   }
+// };
+
 const PREP = async function (req, res) {
   try {
     const ID = req.params.id; // Assuming params_id is the ID of the job post
+
     const jobPost = await jobModel.findById({ _id: ID }).populate('recruiterPlan', 'recruiterPlan');
+
     if (!jobPost) {
-      return res.status(404).json({ success: false, error: 'Job post not found' });
+      return res.status(404).send({ status: false, error: 'Job post not found' });
     }
-    const { recruiterPlan, jobRole, highestEducation, primarySkills } = jobPost;PO
+
+    const { recruiterPlan, jobRole, highestEducation, primarySkills } = jobPost;
+
     const allUsers = await userModel.find({ recruiter: false, isDeleted: false }).lean();
+
     const userDetailsArray = []; // Array to store all the userDetails objects
+
     await Promise.all(
       allUsers.map(async (user) => {
         const educationDetails = await educationModel.find({ userDetailsID: user._id }).lean();
@@ -723,12 +861,15 @@ const PREP = async function (req, res) {
         const projectDetails = await projectsModel.find({ userDetailsID: user._id }).lean();
         const userProfile = await userprofileModel.findOne({ userDetailsID: user._id }).lean();
         const preferenceDetails = await preferenceModel.findOne({ userDetailsID: user._id }).lean();
+
         const { userDetailsID, recruiter, isDeleted: userIsDeleted, _id: userId, createdAt, updatedAt, __v, password, ...filteredUser } = user;
+
         // Exclude fields from educationDetails
         const filteredEducationDetails = educationDetails.map((education) => {
           const { userDetailsID, isDeleted: educationIsDeleted, _id: educationId, createdAt, updatedAt, __v, ...filteredEducation } = education;
           return filteredEducation;
         });
+
         // Exclude fields from experienceDetails
         const filteredExperienceDetails = experienceDetails.map((experience) => {
           const { userDetailsID, isDeleted: experienceIsDeleted, _id: experienceId, createdAt, updatedAt, __v, ...filteredExperience } = experience;
@@ -754,6 +895,7 @@ const PREP = async function (req, res) {
         const experienceTypePoints = experienceDetails.length > 0 ? ExperienceTypePoints[experienceDetails[0].experienceType] || 0 : 0;
         // Calculate the score for authority
         const authorityPoints = educationDetails.length > 0 ? AuthorityPoints[educationDetails[0].authority] || 0 : 0;
+        
         // Calculate the overall score for the user
         const totalScore =
           highestEducationPoints +
@@ -771,6 +913,7 @@ const PREP = async function (req, res) {
           userProfile: filteredUserProfile,
           preferenceDetails: filteredPreferenceDetails,
         };
+
         if (
           filteredPreferenceDetails.jobRole.includes(jobRole) &&
           filteredPreferenceDetails.highestEducation === highestEducation
@@ -780,6 +923,7 @@ const PREP = async function (req, res) {
         userDetailsArray.push(userDetails);
       })
     );
+
     const advancePool = [];
     const proficientPool = [];
     const expertPool = [];
@@ -809,12 +953,15 @@ const PREP = async function (req, res) {
       } else {
         pool = expertPool;
       }
+
       const requiredPrimarySkills = jobPost.primarySkills;
       const primarySkillMatchCount = Array.isArray(skillsDetails.primarySkills) ? skillsDetails.primarySkills.filter((skill) => requiredPrimarySkills.includes(skill)).length : 0;
       const primarySkillPercentageMatch = (primarySkillMatchCount / requiredPrimarySkills.length) * 100;
       userDetails.primarySkillPercentageMatch = primarySkillPercentageMatch;
+
       pool.push(userDetails);
     });
+
     // Based on the recruiterPlan, push matched users to the appropriate pools
     const { recruiterPlan: jobRecruiterPlan } = jobPost.recruiterPlan;
     const poolMap = {
@@ -822,10 +969,12 @@ const PREP = async function (req, res) {
       Silver: proficientPool,
       Platinum: expertPool,
     };
+
     const matchedUsers = poolMap[jobRecruiterPlan];
-    res.status(200).json({ success: true, data:matchedUsers,message: 'Success' });
+
+    res.status(200).send({ status: true, data: matchedUsers, message: 'Success' });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).send({ status: false, error: error.message });
   }
 };
 

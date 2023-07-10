@@ -319,12 +319,8 @@ const updateProject = async (req, res) => {
       skills: Joi.array().items(Joi.string()),
       projectType: Joi.string(),
       projectTitle: Joi.string(),
-      startDate: Joi.string().regex(/^\d{4}\/\d{2}\/\d{2}$/).messages({
-        'string.pattern.base': 'Date should be in the format YYYY/MM/DD'
-      }),
-      endDate: Joi.string().regex(/^\d{4}\/\d{2}\/\d{2}$/).messages({
-        'string.pattern.base': 'Date should be in the format YYYY/MM/DD'
-      }),
+      startDate: Joi.string(),
+      endDate: Joi.string(),
       organizationName: Joi.string(),
       description: Joi.string(),
       url: Joi.string(),
@@ -359,6 +355,30 @@ const deleteProject = async (req, res) => {
     res.status(500).send({ status: false, message: err.message });
   }
 };
+// const projectInformation = async function (req, res) {
+//   try {
+//     const id = req.params.id;
+//     const projectData = await projectsModel.findOne({ _id: id });
+//     if (!projectData) {
+//       return res.status(404).send({ status: false, message: 'projectData not found' });
+//     }
+
+//     const formattedProjectData = {
+//       ...projectData._doc,
+//       startDate: formatDate(projectData.startDate),
+//       endDate: formatDate(projectData.endDate),
+//       createdDate: formatDate(projectData.createdAt),
+//       updatedDate: formatDate(projectData.updatedAt),
+//     };
+
+//     res.status(200).json({ status: true, data: formattedProjectData });
+//   } catch (err) {
+//     res.status(500).json({ status: false, message: err.message });
+//   }
+// };
+
+// ********************************************************************************************************************
+
 const projectInformation = async function (req, res) {
   try {
     const id = req.params.id;
@@ -366,23 +386,22 @@ const projectInformation = async function (req, res) {
     if (!projectData) {
       return res.status(404).send({ status: false, message: 'projectData not found' });
     }
-
+    const date=new Date(projectData.startDate);
+    const endDate=new Date(projectData.endDate);
     const formattedProjectData = {
       ...projectData._doc,
-      startDate: formatDate(projectData.startDate),
-      endDate: formatDate(projectData.endDate),
+      startDate:""+date.getFullYear()+"-"+((1+date.getMonth())<10?"0"+(1+date.getMonth()):(1+date.getMonth()))+"-"+(date.getDate()<10?"0"+date.getDate():date.getDate()),
+      endDate:""+endDate.getFullYear()+"-"+((1+endDate.getMonth())<10?"0"+(1+endDate.getMonth()):(1+endDate.getMonth()))+"-"+(endDate.getDate()<10?"0"+endDate.getDate():endDate.getDate()),
+
       createdDate: formatDate(projectData.createdAt),
       updatedDate: formatDate(projectData.updatedAt),
     };
 
-    res.status(200).json({ status: true, data: formattedProjectData });
+    res.status(200).send({ status: true, data: formattedProjectData });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message });
+    res.status(500).send({ status: false, message: err.message });
   }
 };
-
-// ********************************************************************************************************************
-
 const skillsInfo = async function (req, res) {
   try {
     const skillsSchema = Joi.object({

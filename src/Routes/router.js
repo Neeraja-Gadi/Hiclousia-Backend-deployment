@@ -6,7 +6,8 @@ const infoController = require("../Controllers/infoController");
 const jobController = require("../Controllers/jobController");
 const recruiterController = require("../Controllers/recruiterController");
 const talentController = require("../Controllers/preferenceController");
-const notificationController = require('../Controllers/notificationController');
+const skillmappingController = require("../Controllers/skillmappingController")
+// const notificationController = require('../Controllers/notificationController');
 
 
 // ********************************************************************************************************
@@ -25,6 +26,7 @@ router.put("/updatePreference/:id", talentController.updatePreference);
 router.put("/userProfile/:id", userController.updateuserProfile);
 router.put("/experience/:id", infoController.updateExperienceData);
 router.put("/education/:id", infoController.updateEducationData);
+router.put('/projects/:id', infoController.updateProject);
 router.put("/skill/:id", infoController.updateSkillsData);
 router.put("/job/:id", jobController.updateJobData);
 router.put("/recruiter/:id", recruiterController.updateRecruiterData);
@@ -40,6 +42,7 @@ router.get("/personal/:id", infoController.personalInfo);//get personal info fro
 router.get("/recruiter/:id", recruiterController.recruiterInformation);//get recruiter info from req.params.id
 router.get("/jobpostbyRecruiter/:id", jobController.jobpostbyRecruiter);//get Job post info from req.params.id
 router.get("/strictJobPost/:userDetaildID/:id", jobController.strictJobPost);
+router.get('/searchJobsByPreferences/:userDetailsID', talentController.searchJobsByPreferences);
 router.get("/fetchPreference/:id", talentController.fetchPreference);//get Talent preference info from req.params.id
 // ****************************************************************************************************************
 router.get("/jobs", jobController.searchJobs); //general job search for user or jobseeker
@@ -63,15 +66,21 @@ router.delete('/userProfiles/:id/:key', userController.deleteProfile);
 router.post('/login', userController.loginUser);
 router.post('/resendtoken', userController.sendToken);
 router.post('/resetPassword/:userid/:token', userController.verifyAndUpdatePassword);
+
+// *******************************SkillMapping*****************************************************
+
+router.post('/insertskillstemplates',skillmappingController.insertskillstemplates)
+router.get('/getskillstemplates',skillmappingController.getskillstemplates)
+
 // ******************************Logs & Notifications**************************************************************
 
-router.post('/', notificationController.createNotification);
-router.get('/:recipient', notificationController.getNotificationsByRecipient);
-router.patch('/:notificationId/read', notificationController.markNotificationAsRead);
-router.patch('/:notificationId/accept', notificationController.acceptTalent);
-router.patch('/:notificationId/decline', notificationController.declineTalent);
-router.patch('/:notificationId/schedule-interview', notificationController.scheduleInterview);
-router.patch('/:notificationId/onboard', notificationController.onboardTalent);
-router.patch('/:notificationId/reject', notificationController.rejectTalent);
+// router.post('/', notificationController.createNotification);
+// router.get('/:recipient', notificationController.getNotificationsByRecipient);
+// router.patch('/:notificationId/read', notificationController.markNotificationAsRead);
+// router.patch('/:notificationId/accept', notificationController.acceptTalent);
+// router.patch('/:notificationId/decline', notificationController.declineTalent);
+// router.patch('/:notificationId/schedule-interview', notificationController.scheduleInterview);
+// router.patch('/:notificationId/onboard', notificationController.onboardTalent);
+// router.patch('/:notificationId/reject', notificationController.rejectTalent);
 
 module.exports = router;
