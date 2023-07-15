@@ -2,7 +2,9 @@ const { S3Client } = require("@aws-sdk/client-s3");
 const multer = require("multer");
 const multerS3 = require("multer-s3");
 const path = require("path");
-const deleteProfile = require("./userController"); // Import the deleteProfile function from the separate file
+const { GetObjectCommand } = require("@aws-sdk/client-s3");
+const { DeleteObjectCommand } = require("@aws-sdk/client-s3");
+// const deleteProfile = require("./userController"); // Import the deleteProfile function from the separate file
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION_NAME,
@@ -33,5 +35,7 @@ const upload = multer({
 module.exports = {
   upload,
   s3Client,
-  deleteProfile
+  GetObjectCommand,
+DeleteObjectCommand,
+  // deleteProfile
 };

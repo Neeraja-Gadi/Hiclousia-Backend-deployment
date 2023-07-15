@@ -21,7 +21,7 @@ const createPreference = async (req, res) => {
     if (error) {
       return res
         .status(400)
-        .send({ status: false, message: validationResult.error.details[0].message });
+        .send({ status: false, message: error.message });
     }
     const preference = await talentModel.create(value);
     return res
@@ -31,7 +31,6 @@ const createPreference = async (req, res) => {
     return res.status(500).send({ status: false, message: error.message });
   }
 };
-
 // ***********************************************************************************************************************
 const updatePreference = async (req, res) => {
   try {
