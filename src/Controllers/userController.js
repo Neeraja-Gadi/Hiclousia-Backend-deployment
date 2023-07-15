@@ -9,8 +9,11 @@ const { sendMail } = require("../Middlewares/sendMail");
 const jwt = require('jsonwebtoken');
 const Joi = require('joi');
 const { upload } = require('./awsController.js');
-const { s3Client } = require('./awsController.js');
-const { DeleteObjectsCommand } = require("@aws-sdk/client-s3");
+const { s3Client, GetObjectCommand } = require('./awsController.js');
+// const { DeleteObjectCommand } = require('./awsController.js');
+const path = require("path");
+const { Readable } = require("stream");
+// const { DeleteObjectsCommand } = require("@aws-sdk/client-s3");
 
 // ********************************************************************************************************************
 const userGeneral = async function (req, res) {
@@ -242,6 +245,7 @@ const sendToken = async function (req, res) {
   });
 }
 
+
 // **************************************************************************
 const verifyAndUpdatePassword =  async function(req, res) {
   const { userid, token } = req.params;
@@ -276,12 +280,12 @@ const verifyAndUpdatePassword =  async function(req, res) {
       },
       { returnNewDocument: true }
     );
+
     return res.status(200).send({status:true , data : updatePasswordDB ,message: "password updated successfully" });
   }
   return  res.status(400).send({ Error: "Invalid Link"});
 }
 // **************************************************************************
-
 
 const loginUser = async function (req, res) {
   try {
@@ -294,7 +298,7 @@ const loginUser = async function (req, res) {
     if (validationResult.error) {
       return res.status(400).send({ status: false, message: validationResult.error.details[0].message });
     }
-    const user = await userModel.findOne({ email, isDeleted: false });
+    const user = await userModel.findOne({ email:email, isDeleted: false });
     if (!user) {
      return res.status(404).send({ status: false, message: "Invalid username or password" });
     }
@@ -346,6 +350,7 @@ const loginUser = async function (req, res) {
 //     res.status(500).send({ status: false, message: err.message });
 //   }
 // };
+
 
 const SingleImageUpdate = async function (req, res) {
   try {
@@ -437,6 +442,134 @@ const findJobMatches = async function (req, res) {
   }
 };
 
+async function getSingleImage(req, res) {
+  const id = req.params.id;
+  try {
+    // Fetch the document from MongoDB
+    const userDetails = await userprofileModel.findOne({ userDetailsID: id });
+    if (!userDetails || !userDetails.profileLink) {
+      return res.status(404).json({ message: "User details not found or profile image not available" });
+    }
+
+    const { key } = userDetails.profileLink;
+
+    // Retrieve the image from S3 bucket
+    const params = {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: key
+    };
+    const data = await s3Client.send(new GetObjectCommand(params));
+    const stream = Readable.from(data.Body);
+
+    // Determine the content type based on the file extension
+    const contentType = getContentType(key);
+    if (!contentType) {
+      return res.status(500).json({ message: "Invalid image file format" });
+    }
+
+    // Set the content type header
+    res.set("Content-Type", contentType);
+
+    // Send the image data as the response
+    stream.pipe(res);
+  } catch (error) {
+    console.error("Error retrieving profile image:", error);
+    res.status(500).json({ message: "Error retrieving profile image" });
+  }
+}
+
+// Function to determine the content type based on the file extension
+function getContentType(filename) {
+  const extension = path.extname(filename).toLowerCase();
+  switch (extension) {
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    // Add more cases for other image formats if needed
+    default:
+      return null; // Invalid file format
+  }
+}
 
 
-module.exports = { register, loginUser, userGeneral, deleteuserProfile, findJobMatches, updateuserProfile, getUserProfileById, SingleImageUpdate, sendToken, verifyAndUpdatePassword, deleteProfile };
+const updateUserIsApplied = async (req, res) => {
+  try {
+    const userId = req.params.id; // Assuming the user ID is passed as a parameter in the request URL
+    const { isApplied } = req.body; // Assuming the new value for isApplied is passed in the request body
+
+    // Update the isApplied value for the user with the given ID
+    const updatedUser = await userModel.findByIdAndUpdate(
+      userId,
+      { isApplied },
+      { new: true } // To return the updated user object
+    );
+
+    if (!updatedUser) {
+      return res.status(404).send({ status: false, message: 'User not found' });
+    }
+
+    return res.status(200).send({ status: true, data: updatedUser, message: 'User isApplied updated successfully' });
+  } catch (error) {
+    return res.status(500).send({ status: false, message: err.message });
+  }
+};
+
+const TalentRecommendations = async function (req, res) {
+  try {
+    const userId = req.params.id; // USERID
+
+    // Fetch user details
+    const userDetails = await userModel.findById(userId);
+    if (!userDetails) {
+      return res.status(404).send({ status: false, message: "User not found" });
+    }
+
+    // Fetch user's education details
+    const educationDetails = await educationModel
+      .findOne({ userDetailsID: userDetails._id })
+      .lean();
+
+    // Fetch user's experience details
+    const experienceDetails = await experienceModel
+      .findOne({ userDetailsID: userDetails._id })
+      .lean();
+
+    // Fetch user's skills details
+    const skillsDetails = await skillsModel
+      .findOne({ userDetailsID: userDetails._id })
+      .lean();
+
+    // Fetch user's profile details
+    const userProfileDetails = await userprofileModel
+      .findOne({ userDetailsID: userDetails._id })
+      .lean();
+
+    // Convert userProfileDetails.location to string
+    const locationString = userProfileDetails.location.toString();
+
+    // Prepare search query for job matching
+    const searchQuery = {
+      $or: [
+        { jobRole: { $in: experienceDetails.jobRole } },
+        { highestEducation: { $in: educationDetails.educationLevel } },
+        { experience: { $in: experienceDetails.experience } },
+        { location: { $regex: locationString, $options: "i" } },
+      ],
+    };
+
+    // Perform word matches in jobModel fields
+    const jobMatches = await jobModel.find(searchQuery);
+
+    res.status(200).send({ status: true, data: jobMatches, message: 'Success' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ status: false, message: "Internal server error" });
+  }
+};
+
+module.exports = { register, loginUser, userGeneral, 
+  deleteuserProfile,getSingleImage , updateUserIsApplied ,
+  findJobMatches, updateuserProfile, getUserProfileById, SingleImageUpdate, 
+  sendToken, verifyAndUpdatePassword, TalentRecommendations,deleteProfile };

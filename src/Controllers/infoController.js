@@ -2,8 +2,8 @@ const educationModel = require("../Models/InfoModels/educationModel.js");
 const experienceModel = require("../Models/InfoModels/experienceModel.js");
 const projectsModel = require("../Models/InfoModels/projectsModel.js");
 const userprofileModel = require("../Models/userprofileModel");
-const skillsModel = require("../Models/InfoModels/skillsModel.js")
-const userModel = require("../Models/userModel.js")
+const skillsModel = require("../Models/InfoModels/skillsModel.js");
+const userModel = require("../Models/userModel.js");
 const Joi = require('joi');
 // ********************************************************************************************************************
 const educationInfo = async function (req, res) {
@@ -30,7 +30,7 @@ const educationInfo = async function (req, res) {
     const data = await educationModel.create(req.body);
     if (data)
       return res
-        .status(200)
+        .status(201)
         .send({ status: true, data: data, message: 'Education data created' });
   } catch (err) {
     return res.status(500).send({ status: false, message: err.message });
@@ -81,24 +81,30 @@ const updateEducationData = async function (req, res) {
     return res.status(500).send({ status: false, message: err.message });
   }
 };
-const educationInformation = async function (req, res) {
+const educationInformationByID = async function (req, res) {
   try {
     const id = req.params.id;
-    const educationData = await educationModel.find({ _id:id });
+    const educationData = await educationModel.findById(id);
     if (!educationData) {
       return res.status(404).send({ status: false, message: 'Education data not found' });
     }
-    const formattedEducationData = educationData.map((data) => ({
-      ...data._doc,
-      yearOfpassout: getYear(data.yearOfpassout),
-      startYear: formatDate(data.startYear),
-      endYear: formatDate(data.endYear),
-      createdDate: formatDate(data.createdAt),
-      updatedDate: formatDate(data.updatedAt),
-    }));
-    return res.status(200).json({ status: true, data: formattedEducationData });
+
+    const year = getYear(educationData.yearOfpassout);
+    const startYear = getYear(educationData.startDate);
+    const endYear = getYear(educationData.endDate);
+
+    const formattedEducationData = {
+      ...educationData._doc,
+      year: year,
+      startYear: startYear,
+      endYear: endYear,
+      createdDate: formatDate(educationData.createdAt),
+      updatedDate: formatDate(educationData.updatedAt),
+    };
+
+    return res.status(200).send({ status: true, data: formattedEducationData });
   } catch (err) {
-    return res.status(500).json({ status: false, message: err.message });
+    return res.status(500).send({ status: false, message: err.message });
   }
 };
 function getYear(date) {
@@ -112,7 +118,6 @@ function formatDate(date) {
   const year = formattedDate.getFullYear();
   return `${day}/${month}/${year}`;
 }
-
 const deleteEducation = async function (req, res) {
   try {
     const id = req.params.id;
@@ -120,9 +125,9 @@ const deleteEducation = async function (req, res) {
     if (!educationData) {
       return res.status(404).send({ status: false, message: 'Education data not found' });
     }
-    return res.status(200).json({ status: true, message: 'Education information deleted successfully' });
+    return res.status(200).send({ status: true, message: 'Education information deleted successfully' });
   } catch (err) {
-    return res.status(500).json({ status: false, message: err.message });
+    return res.status(500).send({ status: false, message: err.message });
   }
 };
 //***********************************************************************************************************/
@@ -153,9 +158,10 @@ const experienceInfo = async function (req, res) {
     if (validationResult.error) {
       return res.status(400).send({ status: false, message: validationResult.error.details[0].message });
     };
+    
     const data = await experienceModel.create(req.body);
     if (data)
-      return res.status(200).send({ status: true, data: data, message: 'Experience data created' });
+      return res.status(201).send({ status: true, data: data, message: 'Experience data created' });
 
     // Additional response if data creation fails
     return res.status(500).send({ status: false, message: 'Failed to create experience data' });
@@ -163,7 +169,6 @@ const experienceInfo = async function (req, res) {
     res.status(500).send({ status: false, message: err.message });
   }
 };
-
 const updateExperienceData = async function (req, res) {
   try {
     const { userDetailsID, jobStatus, jobRole, companyType, location, skills, companyName, responsivePoC, startDate, endDate, experienceType } = req.body;
@@ -189,6 +194,7 @@ const updateExperienceData = async function (req, res) {
       startDate: Joi.string().required(),
       endDate: Joi.string().required(),
     });
+
 
     const validationResult = experienceSchema.validate(req.body, { abortEarly: false });
     if (validationResult.error) {
@@ -220,25 +226,26 @@ const updateExperienceData = async function (req, res) {
     return res.status(500).send({ status: false, message: err.message });
   }
 };
-const experienceInformation = async function (req, res) {
+const experienceInformationByID = async function (req, res) {
   try {
     const id = req.params.id;
     const experienceData = await experienceModel.findOne({ _id: id });
     if (!experienceData) {
       return res.status(404).send({ status: false, message: 'Experience data not found' });
     }
-
+    const date=new Date(experienceData.startDate);
+    const endDate=new Date(experienceData.endDate);
     const formattedExperienceData = {
       ...experienceData._doc,
-      endDate: formatDate(experienceData.endDate),
-      startDate: formatDate(experienceData.startDate),
+      startDate:""+date.getFullYear()+"-"+((1+date.getMonth())<10?"0"+(1+date.getMonth()):(1+date.getMonth()))+"-"+(date.getDate()<10?"0"+date.getDate():date.getDate()),
+      endDate:""+endDate.getFullYear()+"-"+((1+endDate.getMonth())<10?"0"+(1+endDate.getMonth()):(1+endDate.getMonth()))+"-"+(endDate.getDate()<10?"0"+endDate.getDate():endDate.getDate()),
       createdDate: formatDate(experienceData.createdAt),
       updatedDate: formatDate(experienceData.updatedAt),
     };
 
-    res.status(200).json({ status: true, data: formattedExperienceData });
+    return res.status(200).send({ status: true, data: formattedExperienceData });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message });
+    return res.status(500).send({ status: false, message: err.message });
   }
 };
 
@@ -249,9 +256,9 @@ const deleteExperience = async function (req, res) {
     if (!experienceData) {
       return res.status(404).send({ status: false, message: 'Experience data not found' });
     }
-    res.status(200).json({ status: true, message: 'Experience information deleted successfully' });
+    res.status(200).send({ status: true, message: 'Experience information deleted successfully' });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message });
+    res.status(500).send({ status: false, message: err.message });
   }
 };
 
@@ -280,14 +287,14 @@ const projectInfo = async (req, res) => {
     }
 
     const data = await projectsModel.create(req.body);
-    return res.status(200).send({ status: true, data: data, message: 'Project created' });
+    return res.status(201).send({ status: true, data: data, message: 'Project data created' });
   } catch (err) {
     res.status(500).send({ status: false, message: err.message });
   }
 };
 
 // Get all projects
-const getProjectByID = async (req, res) => {
+const getProjectByUserDetailsID = async (req, res) => {
   try {
     const projects = await projectsModel.find().populate('userDetailsID');
     if (!projects) {
@@ -295,7 +302,6 @@ const getProjectByID = async (req, res) => {
     }
     const formattedProjects = projects.map((data) => ({
       ...data._doc,
-
       startDate: formatDate(data.startDate),
       endDate: formatDate(data.endDate),
       createdDate: formatDate(data.createdAt),
@@ -336,7 +342,7 @@ const updateProject = async (req, res) => {
     if (!data) {
       return res.status(404).send({ status: false, message: 'Project not found' });
     }
-    return res.status(200).send({ status: true, data: data, message: 'Project updated' });
+    return res.status(200).send({ status: true, data: data, message: 'Project data updated' });
   } catch (err) {
     res.status(500).send({ status: false, message: err.message });
   }
@@ -355,31 +361,7 @@ const deleteProject = async (req, res) => {
     res.status(500).send({ status: false, message: err.message });
   }
 };
-// const projectInformation = async function (req, res) {
-//   try {
-//     const id = req.params.id;
-//     const projectData = await projectsModel.findOne({ _id: id });
-//     if (!projectData) {
-//       return res.status(404).send({ status: false, message: 'projectData not found' });
-//     }
-
-//     const formattedProjectData = {
-//       ...projectData._doc,
-//       startDate: formatDate(projectData.startDate),
-//       endDate: formatDate(projectData.endDate),
-//       createdDate: formatDate(projectData.createdAt),
-//       updatedDate: formatDate(projectData.updatedAt),
-//     };
-
-//     res.status(200).json({ status: true, data: formattedProjectData });
-//   } catch (err) {
-//     res.status(500).json({ status: false, message: err.message });
-//   }
-// };
-
-// ********************************************************************************************************************
-
-const projectInformation = async function (req, res) {
+const projectInformationByID = async function (req, res) {
   try {
     const id = req.params.id;
     const projectData = await projectsModel.findOne({ _id: id });
@@ -392,16 +374,16 @@ const projectInformation = async function (req, res) {
       ...projectData._doc,
       startDate:""+date.getFullYear()+"-"+((1+date.getMonth())<10?"0"+(1+date.getMonth()):(1+date.getMonth()))+"-"+(date.getDate()<10?"0"+date.getDate():date.getDate()),
       endDate:""+endDate.getFullYear()+"-"+((1+endDate.getMonth())<10?"0"+(1+endDate.getMonth()):(1+endDate.getMonth()))+"-"+(endDate.getDate()<10?"0"+endDate.getDate():endDate.getDate()),
-
       createdDate: formatDate(projectData.createdAt),
       updatedDate: formatDate(projectData.updatedAt),
     };
-
     res.status(200).send({ status: true, data: formattedProjectData });
   } catch (err) {
     res.status(500).send({ status: false, message: err.message });
   }
 };
+//********************************************************************************************************************
+
 const skillsInfo = async function (req, res) {
   try {
     const skillsSchema = Joi.object({
@@ -415,7 +397,7 @@ const skillsInfo = async function (req, res) {
     };
     const data = await skillsModel.create(req.body);
     if (data)
-      return res.status(200).send({ status: true, data: data, message: 'Skills data created' });
+      return res.status(201).send({ status: true, data: data, message: 'Skills data created' });
 
   } catch (err) {
     res.status(500).send({ status: false, message: err.message })
@@ -469,20 +451,33 @@ const updateSkillsData = async function (req, res) {
     return res.status(500).send({ status: false, message: err.message });
   }
 };
-const skillsInformation = async function (req, res) {
+
+const skillsInformationByID = async function (req, res) {
   try {
     const id = req.params.id;
     const skillsData = await skillsModel.findOne({ _id: id });
     if (!skillsData) {
       return res.status(404).send({ status: false, message: 'skillsData data not found' });
     }
-    res.status(200).json({ status: true, data: skillsData });
-  }
-  catch (err) {
-    res.status(500).json({ status: false, message: err.message });
+    let formattedSkillsData;
+    if (Array.isArray(skillsData)) {
+      formattedSkillsData = skillsData.map((data) => ({
+        ...data._doc,
+        createdDate: formatDate(data.createdAt),
+        updatedDate: formatDate(data.updatedAt),
+      }));
+    } else {
+      formattedSkillsData = {
+        ...skillsData._doc,
+        createdDate: formatDate(skillsData.createdAt),
+        updatedDate: formatDate(skillsData.updatedAt),
+      };
+    }
+    res.status(200).send({ status: true, data: formattedSkillsData });
+  } catch (err) {
+    res.status(500).send({ status: false, message: err.message });
   }
 };
-
 
 const deleteSkills = async function (req, res) {
   try {
@@ -491,9 +486,9 @@ const deleteSkills = async function (req, res) {
     if (!skillsData) {
       return res.status(404).send({ status: false, message: 'skillsData data not found' });
     }
-    res.status(200).json({ status: true, message: 'Skills information deleted successfully' });
+    res.status(200).send({ status: true, message: 'Skills information deleted successfully' });
   } catch (err) {
-    res.status(500).json({ status: false, message: err.message });
+    res.status(500).send({ status: false, message: err.message });
   }
 };
 
@@ -501,25 +496,22 @@ const deleteSkills = async function (req, res) {
 
 const personalInfo = async function (req, res) {
   try {
-
     const id = req.params.id
-
     const user = await userModel.find({ _id: id })
     const educationData = await educationModel.find({ userDetailsID: id })
     const experienceData = await experienceModel.find({ userDetailsID: id })
     const skills = await skillsModel.find({ userDetailsID: id })
     const userprofile = await userprofileModel.find({ userDetailsID: id })
     const projects = await projectsModel.find({ userDetailsID: id })
-
     const data = { user, educationData, experienceData, skills, userprofile, projects }
     if (!data) {
       return res.status(404).send({ status: false, message: 'Personal Data data not found' });
     }
-    return res.status(200).send({ status: true, data: data })
-
+    return res.status(200).send({ status: true, data: data, message: 'Personal Data Found' });
   } catch (err) {
     res.status(500).send({ status: false, message: err.message })
   }
 };
 
-module.exports = { educationInfo, educationInformation, deleteEducation, updateEducationData, projectInformation, experienceInformation, deleteExperience, experienceInfo, updateExperienceData, skillsInformation, skillsInfo, updateSkillsData, deleteSkills, deleteProject, getProjectByID, updateProject, projectInfo, personalInfo };
+
+module.exports = { educationInfo, educationInformationByID, deleteEducation, updateEducationData, projectInformationByID, experienceInformationByID, deleteExperience, experienceInfo, updateExperienceData, skillsInformationByID, skillsInfo, updateSkillsData, deleteSkills, deleteProject, getProjectByUserDetailsID, updateProject, projectInfo, personalInfo };

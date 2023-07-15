@@ -7,7 +7,13 @@ const cors = require('cors');
 const route = require('./src/Routes/router');
 app.use(morgan('dev'));
 app.use(express.json());
-app.use(cors());
+app.use(
+    cors({
+      origin: 'http://hiclousia.com',
+      methods: ['GET', 'POST', 'PUT', 'DELETE' , "PATCH"],
+    })
+  );
+  
 app.use('/', route);
 
 // DATABASE CONNECTION
